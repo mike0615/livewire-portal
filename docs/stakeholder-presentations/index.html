@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LiveWire Portal — Stakeholder Presentations</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --accent: #38bdf8;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  header {
+    background: linear-gradient(135deg, #0f172a, #1e3a5f);
+    padding: 3rem 1.5rem 2rem;
+    text-align: center;
+    border-bottom: 1px solid #334155;
+  }
+  header h1 { margin: 0 0 0.5rem; font-size: 2.2rem; }
+  header p { margin: 0; color: var(--muted); max-width: 640px; margin: 0 auto; }
+  .audience-bar {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding: 1rem;
+    background: var(--panel);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-bottom: 1px solid #334155;
+  }
+  .audience-bar button {
+    background: transparent;
+    border: 1px solid #475569;
+    color: var(--muted);
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+  }
+  .audience-bar button:hover { border-color: var(--accent); color: var(--text); }
+  .audience-bar button.active { background: var(--accent); color: #0f172a; border-color: var(--accent); font-weight: 600; }
+  main { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  section { display: none; animation: fade 0.3s ease; }
+  section.active { display: block; }
+  @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  h2 { font-size: 1.6rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.4rem; display: inline-block; }
+  h3 { color: var(--accent); margin-top: 1.8rem; }
+  ul { padding-left: 1.2rem; }
+  li { margin: 0.4rem 0; }
+  .card {
+    background: var(--panel);
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 1.2rem 1.4rem;
+    margin: 1rem 0;
+  }
+  .card strong { color: var(--accent); }
+  .tag { display: inline-block; font-size: 0.75rem; background: #334155; color: var(--muted); padding: 0.15rem 0.6rem; border-radius: 4px; margin-right: 0.3rem; }
+  footer { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 2rem; border-top: 1px solid #334155; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>LiveWire Portal</h1>
+  <p>The single one-place-to-go location for all your tools and applications. WordPress front-end with Kerberos SSO, embedded chat, file sharing, webmail, and multi-site high availability.</p>
+</header>
+
+<div class="audience-bar">
+  <button class="active" data-audience="exec">Executive View</button>
+  <button data-audience="features">Features &amp; Benefits</button>
+  <button data-audience="tech">Technical Build</button>
+</div>
+
+<main>
+  <!-- EXECUTIVE -->
+  <section id="exec" class="active">
+    <h2>Executive Summary</h2>
+    <div class="card">
+      <p><strong>The problem:</strong> Teams bounce between separate portals, chat, mail, file shares, and tool links. That fragmentation slows work, weakens security posture, and makes multi-site operations fragile.</p>
+      <p><strong>The answer:</strong> LiveWire Portal is one unified front door. Everything your people need — SSO, chat, files, webmail, and deep links to every internal tool — lives behind a single, themed, authenticated experience.</p>
+    </div>
+    <h3>Why it matters</h3>
+    <ul>
+      <li><strong>Lower operational cost</strong> — one platform to maintain instead of a stack of point solutions.</li>
+      <li><strong>Stronger security</strong> — Kerberos SSO, consistent access, fewer exposed endpoints.</li>
+      <li><strong>Better collaboration</strong> — chat and file sharing embedded where people already work.</li>
+      <li><strong>Resilient by design</strong> — multi-site HA across three locations with load balancing and failover.</li>
+    </ul>
+    <h3>Scale targets</h3>
+    <div class="card">
+      <p>Built for <strong>three sites</strong> on different subnets, load-balanced and fail-over ready, running on an <strong>XCP-ng</strong> pool managed through Xen Orchestra.</p>
+    </div>
+    <h3>Bottom line</h3>
+    <p>One portal, one login, one place to go. Consolidation with clear security and resilience upside — ready for leadership review.</p>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <h2>Features &amp; Benefits</h2>
+    <div class="card">
+      <p>A complete collaboration and access layer surfaced through a single, consistent interface.</p>
+    </div>
+    <h3>Core capabilities</h3>
+    <ul>
+      <li><span class="tag">SSO</span> Kerberos / SPNEGO authentication against FreeIPA or Active Directory.</li>
+      <li><span class="tag">Chat</span> Embedded XMPP via Converse.js and Prosody.</li>
+      <li><span class="tag">Files</span> Upload, download, and sharing built into the portal.</li>
+      <li><span class="tag">Webmail</span> Roundcube embedded for mail without leaving the portal.</li>
+      <li><span class="tag">Tool links</span> Consistent themed links to every internal application.</li>
+      <li><span class="tag">Multi-site HA</span> Three locations, different subnets, load balance plus failover.</li>
+      <li><span class="tag">XCP-ng</span> Runs on a virtualization pool managed by Xen Orchestra.</li>
+    </ul>
+    <h3>Benefits of the single-pane approach</h3>
+    <ul>
+      <li>No context-switching — chat, mail, files, and tools are one click away.</li>
+      <li>One theme and one login across every surface.</li>
+      <li>Helpdesk and users share the same front door, reducing ticket volume.</li>
+      <li>HA and failover are part of the design, not an afterthought.</li>
+    </ul>
+  </section>
+
+  <!-- TECHNICAL -->
+  <section id="tech">
+    <h2>Technical Build</h2>
+    <div class="card">
+      <p><strong>Architecture:</strong> WordPress as the front-end, Apache with Kerberos/SPNEGO, Prosody for XMPP, Roundcube for webmail, HAProxy plus Keepalived for multi-site load balancing and failover, all on an XCP-ng pool.</p>
+    </div>
+    <h3>Stack</h3>
+    <ul>
+      <li>Front-end: WordPress + livewire-child theme</li>
+      <li>Auth: Apache mod_auth_kerb / SPNEGO against FreeIPA or AD</li>
+      <li>Chat: Converse.js (client) + Prosody (XMPP server)</li>
+      <li>Mail: Roundcube embed</li>
+      <li>Files: portal-native sharing</li>
+      <li>HA: HAProxy + Keepalived across three sites</li>
+      <li>Hypervisor: XCP-ng pool with Xen Orchestra</li>
+      <li>Custom: livewire-shortcodes plugin</li>
+    </ul>
+    <h3>Deployment</h3>
+    <ul>
+      <li>Install plan: <code>docs/INSTALL_PLAN.md</code></li>
+      <li>HA config: <code>docs/XCPNG_HA.md</code></li>
+      <li>Configs: <code>configs/apache</code>, <code>configs/haproxy</code>, <code>configs/keepalived</code>, <code>configs/prosody</code></li>
+      <li>Deploy script: <code>scripts/deploy.sh</code></li>
+    </ul>
+    <h3>Repo layout</h3>
+    <div class="card">
+      <p><code>docs/</code> architecture &amp; plans &middot; <code>configs/</code> &middot; <code>themes/livewire-child/</code> &middot; <code>plugins/livewire-shortcodes/</code> &middot; <code>scripts/</code></p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  LiveWire Portal stakeholder deck &middot; Source: <a href="https://github.com/mike0615/livewire-portal">github.com/mike0615/livewire-portal</a>
+</footer>
+
+<script>
+  document.querySelectorAll('.audience-bar button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.audience-bar button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('main section').forEach(s => s.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.audience).classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
