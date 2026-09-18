@@ -1,0 +1,50 @@
+/*
+Theme Name: LiveWire Child
+Template: twentytwentyfour
+Description: Unified theme for LiveWire Portal. Matches Converse.js and embeds.
+Version: 1.0
+*/
+
+:root {
+    --brand-primary: #0077be;
+    --brand-secondary: #00a8cc;
+    --background: #f0f8ff;
+    --text-color: #333333;
+    --accent: #28a745;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    color: var(--text-color);
+    background: var(--background);
+}
+
+.portal-dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    padding: 2rem;
+}
+
+.tool-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    transition: transform 0.2s;
+}
+.tool-card:hover {
+    transform: translateY(-4px);
+}
+
+.tool-card h3 {
+    color: var(--brand-primary);
+    margin-top: 0;
+}
+
+.embed-frame {
+    width: 100%;
+    height: 80vh;
+    border: none;
+    border-radius: 8px;
+}

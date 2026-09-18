@@ -1,0 +1,35 @@
+# HAProxy config for LiveWire Portal
+global
+    log /dev/log local0
+    maxconn 4096
+    daemon
+
+defaults
+    log     global
+    mode    http
+    option  httplog
+    timeout connect 5s
+    timeout client  300s
+    timeout server  300s
+
+frontend portal_http
+    bind *:80
+    redirect scheme https code 301 if !{ ssl_fc }
+
+frontend portal_https
+    bind *:443 ssl crt /etc/haproxy/certs/portal.pem
+    default_backend wordpress_backends
+    http-request set-header X-Forwarded-Proto https
+    http-request set-header X-Real-IP %[src]
+
+backend wordpress_backends
+    balance roundrobin
+    option httpchk GET /wp-login.php
+    server wp1 10.1.1.20:80 check
+    server wp2 10.1.1.21:80 check
+    server wp3 10.2.1.20:80 check backup
+
+backend xmpp_bosh
+    balance roundrobin
+    server xmpp1 10.1.1.30:5280 check
+    server xmpp2 10.1.1.31:5280 check
