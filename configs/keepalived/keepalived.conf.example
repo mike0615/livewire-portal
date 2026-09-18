@@ -1,4 +1,6 @@
 # Keepalived for HAProxy VIP (unicast for cross-subnet)
+# SECURITY: rotate auth_pass before production. Do NOT commit real secrets.
+# Generate with: openssl rand -base64 16
 global_defs {
     router_id haproxy1
 }
@@ -24,7 +26,8 @@ vrrp_instance VI_1 {
     }
     authentication {
         auth_type PASS
-        auth_pass livewire2024
+        # REPLACE with a strong random value (see note above). Never leave the example in prod.
+        auth_pass CHANGE_ME_ROTATE_BEFORE_DEPLOY
     }
     virtual_ipaddress {
         10.1.1.100/24
