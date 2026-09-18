@@ -2,7 +2,10 @@
 /**
  * Plugin Name: LiveWire Shortcodes
  * Description: Unified shortcodes for embeds and dashboard.
- * Version: 1.0
+ * Version: 1.1
+ *
+ * Dashboard is now data-driven: edit plugins/livewire-shortcodes/tools.json
+ * to add/remove tool cards without touching PHP.
  */
 
 function livewire_register_shortcodes() {
@@ -13,21 +16,52 @@ function livewire_register_shortcodes() {
 }
 add_action('init', 'livewire_register_shortcodes');
 
+/**
+ * Load tool definitions from tools.json (falls back to built-in defaults).
+ */
+function livewire_load_tools() {
+    $json_path = plugin_dir_path(__FILE__) . 'tools.json';
+    if (file_exists($json_path)) {
+        $raw = file_get_contents($json_path);
+        $tools = json_decode($raw, true);
+        if (is_array($tools)) {
+            return $tools;
+        }
+    }
+    return array(
+        array('icon' => '💬', 'title' => 'Chat', 'desc' => 'Team XMPP', 'url' => '#chat'),
+        array('icon' => '📁', 'title' => 'Files', 'desc' => 'Share & download', 'url' => '#files'),
+        array('icon' => '✉️', 'title' => 'Mail', 'desc' => 'Roundcube', 'url' => '#mail'),
+        array('icon' => '🔧', 'title' => 'Tools', 'desc' => 'All links', 'url' => '#tools'),
+    );
+}
+
 function livewire_dashboard_cb() {
-    return '<div class="portal-dashboard">
-        <div class="tool-card"><h3>💬 Chat</h3><p>Team XMPP</p></div>
-        <div class="tool-card"><h3>📁 Files</h3><p>Share & download</p></div>
-        <div class="tool-card"><h3>✉️ Mail</h3><p>Roundcube</p></div>
-        <div class="tool-card"><h3>🔧 Tools</h3><p>All links</p></div>
-    </div>';
+    $tools = livewire_load_tools();
+    ob_start();
+    echo '<div class="portal-dashboard">';
+    foreach ($tools as $t) {
+        $icon  = isset($t['icon'])  ? esc_html($t['icon'])  : '';
+        $title = isset($t['title']) ? esc_html($t['title']) : '';
+        $desc  = isset($t['desc'])  ? esc_html($t['desc'])  : '';
+        $url   = isset($t['url'])   ? esc_url($t['url'])    : '#';
+        echo '<a class="tool-card" href="' . $url . '">';
+        echo '<h3>' . $icon . ' ' . $title . '</h3>';
+        echo '<p>' . $desc . '</p>';
+        echo '</a>';
+    }
+    echo '</div>';
+    return ob_get_clean();
 }
 
 function livewire_chat_cb() {
-    return '<iframe class="embed-frame" src="https://xmpp.example.com/converse/" title="Chat"></iframe>';
+    $url = esc_url(apply_filters('livewire_xmpp_url', 'https://xmpp.example.com/converse/'));
+    return '<iframe class="embed-frame" src="' . $url . '" title="Chat"></iframe>';
 }
 
 function livewire_mail_cb() {
-    return '<iframe class="embed-frame" src="https://mail.example.com/roundcube/" title="Mail"></iframe>';
+    $url = esc_url(apply_filters('livewire_mail_url', 'https://mail.example.com/roundcube/'));
+    return '<iframe class="embed-frame" src="' . $url . '" title="Mail"></iframe>';
 }
 
 function livewire_files_cb() {

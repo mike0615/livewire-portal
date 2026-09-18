@@ -1,0 +1,26 @@
+[
+  {
+    "icon": "💬",
+    "title": "Chat",
+    "desc": "Team XMPP via Converse.js",
+    "url": "#chat"
+  },
+  {
+    "icon": "📁",
+    "title": "Files",
+    "desc": "Share & download",
+    "url": "#files"
+  },
+  {
+    "icon": "✉️",
+    "title": "Mail",
+    "desc": "Roundcube webmail",
+    "url": "#mail"
+  },
+  {
+    "icon": "🔧",
+    "title": "Tools",
+    "desc": "All internal links",
+    "url": "#tools"
+  }
+]
