@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          coverage: none
+
+      - name: Install shellcheck and jq
+        run: sudo apt-get update && sudo apt-get install -y shellcheck jq
+
+      - name: Bash syntax (bash -n)
+        run: |
+          set -euo pipefail
+          mapfile -t scripts < <(find scripts -type f -name '*.sh' 2>/dev/null || true)
+          if [[ ${#scripts[@]} -eq 0 ]]; then
+            echo "No scripts to check"
+            exit 0
+          fi
+          for f in "${scripts[@]}"; do
+            echo "bash -n $f"
+            bash -n "$f"
+          done
+
+      - name: ShellCheck
+        run: |
+          set -euo pipefail
+          mapfile -t scripts < <(find scripts -type f -name '*.sh' 2>/dev/null || true)
+          if [[ ${#scripts[@]} -eq 0 ]]; then
+            echo "No scripts to shellcheck"
+            exit 0
+          fi
+          shellcheck -x "${scripts[@]}"
+
+      - name: PHP lint
+        run: |
+          set -euo pipefail
+          mapfile -t phpfiles < <(find plugins themes -type f -name '*.php' 2>/dev/null || true)
+          if [[ ${#phpfiles[@]} -eq 0 ]]; then
+            echo "No PHP files to lint"
+            exit 0
+          fi
+          for f in "${phpfiles[@]}"; do
+            echo "php -l $f"
+            php -l "$f"
+          done
+
+      - name: Validate tools.json
+        run: |
+          set -euo pipefail
+          jq empty plugins/livewire-shortcodes/tools.json
+          jq -e 'type == "array" and length > 0' plugins/livewire-shortcodes/tools.json >/dev/null
+
+      - name: Secret / placeholder guard (non-example configs)
+        run: |
+          set -euo pipefail
+          bad=0
+          while IFS= read -r -d '' f; do
+            case "$f" in
+              *.example|*.example.*|*.md) continue ;;
+            esac
+            if grep -Eiq 'CHANGE_ME|livewire2024' "$f"; then
+              echo "::error file=$f::Placeholder or default secret in non-example config"
+              bad=1
+            fi
+          done < <(find configs -type f -print0 2>/dev/null || true)
+          if [[ "$bad" -ne 0 ]]; then
+            exit 1
+          fi
+          echo "OK: no CHANGE_ME/livewire2024 in non-example configs"
+
+      - name: HAProxy must not health-check wp-login.php
+        run: |
+          set -euo pipefail
+          if grep -RInE 'httpchk.*wp-login\.php|GET /wp-login\.php' configs/haproxy; then
+            echo "::error::HAProxy health check must not use /wp-login.php (checklist §6)"
+            exit 1
+          fi
+          echo "OK: no wp-login.php health checks"
+
+      - name: Markdown link check (docs)
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: "yes"
+          use-verbose-mode: "yes"
+          folder-path: "docs"
+          file-extension: ".md"
