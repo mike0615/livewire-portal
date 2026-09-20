@@ -1,40 +1,149 @@
 #!/bin/bash
-# Hardened deploy helper for LiveWire Portal
-# Fails fast on any error. Run as root or with sudo.
+# Hardened, secret-safe deploy helper for LiveWire Portal.
+# Fails fast. Run as root or with sudo for service steps.
+#
+# Usage:
+#   REF=main ./scripts/deploy.sh              # default: Apache + Prosody only
+#   APPLY_LB=1 ./scripts/deploy.sh            # also apply HAProxy/Keepalived (dangerous)
+#   FIRST_INSTALL=1 APPLY_LB=1 ./scripts/deploy.sh
+#
+# Env:
+#   REPO_DIR   Checkout directory (default: livewire-portal)
+#   REF        Branch or tag to deploy (default: main). Alias: BRANCH
+#   APPLY_LB   Set to 1 to copy HAProxy/Keepalived from repo examples into /etc
+#              (refused unless FIRST_INSTALL=1 or FORCE_LB=1, and preflight passes)
+#   FIRST_INSTALL  Allow creating missing LB configs from examples (still runs preflight)
+#   FORCE_LB   Override "live file exists" guard (still runs preflight; use with care)
+#   SKIP_PULL  Set to 1 if already on the desired ref in REPO_DIR
+#
 set -euo pipefail
 
-REPO_DIR="livewire-portal"
-BRANCH="main"
+REPO_DIR="${REPO_DIR:-livewire-portal}"
+REF="${REF:-${BRANCH:-main}}"
+APPLY_LB="${APPLY_LB:-0}"
+FIRST_INSTALL="${FIRST_INSTALL:-0}"
+FORCE_LB="${FORCE_LB:-0}"
+SKIP_PULL="${SKIP_PULL:-0}"
+BACKUP_ROOT="${BACKUP_ROOT:-/var/backups/livewire-portal}"
+STAMP="$(date +%Y%m%d-%H%M%S)"
 
-echo "[1/5] Cloning or updating repo..."
-if [ -d "$REPO_DIR" ]; then
+HAPROXY_SRC="configs/haproxy/haproxy.cfg.example"
+HAPROXY_DST="/etc/haproxy/haproxy.cfg"
+KEEPALIVED_SRC="configs/keepalived/keepalived.conf.example"
+KEEPALIVED_DST="/etc/keepalived/keepalived.conf"
+PROSODY_SRC="configs/prosody/prosody.cfg.lua.example"
+PROSODY_DST="/etc/prosody/prosody.cfg.lua"
+
+die() { echo "ERROR: $*" >&2; exit 1; }
+
+backup_path() {
+  local src="$1"
+  if [[ -e "$src" ]]; then
+    mkdir -p "$BACKUP_ROOT/$STAMP"
+    cp -a "$src" "$BACKUP_ROOT/$STAMP/$(basename "$src")"
+    echo "  backed up $src -> $BACKUP_ROOT/$STAMP/"
+  fi
+}
+
+# Fail if a file that is about to be installed still has placeholders.
+preflight_file() {
+  local f="$1"
+  local label="$2"
+  [[ -f "$f" ]] || die "missing $label: $f"
+  if grep -Eiq 'CHANGE_ME|livewire2024|example\.com' "$f"; then
+    die "$label still contains CHANGE_ME / livewire2024 / example.com: $f\n       Fix site-local config (or edit the example before APPLY_LB) before deploy."
+  fi
+}
+
+echo "[1/6] Repo at REF=$REF ..."
+if [[ "$SKIP_PULL" != "1" ]]; then
+  if [[ -d "$REPO_DIR/.git" ]]; then
     cd "$REPO_DIR"
     git fetch origin
-    git checkout "$BRANCH"
-    git pull --ff-only origin "$BRANCH"
-else
+    git checkout "$REF"
+    git pull --ff-only origin "$REF" 2>/dev/null || git pull --ff-only || true
+    # If REF is a tag, pull may no-op; ensure we are on it
+    git checkout "$REF"
+  elif [[ -d "$REPO_DIR" ]]; then
+    die "$REPO_DIR exists but is not a git checkout"
+  else
     git clone https://github.com/mike0615/livewire-portal.git "$REPO_DIR"
     cd "$REPO_DIR"
-    git checkout "$BRANCH"
+    git checkout "$REF"
+  fi
+else
+  cd "$REPO_DIR" || die "SKIP_PULL=1 but cannot cd $REPO_DIR"
 fi
 
-echo "[2/5] Copying Apache configs..."
+echo "[2/6] Backing up live configs (if present)..."
+backup_path /etc/httpd/conf.d
+backup_path "$PROSODY_DST"
+backup_path "$HAPROXY_DST"
+backup_path "$KEEPALIVED_DST"
+
+echo "[3/6] Apache configs..."
+sudo mkdir -p /etc/httpd/conf.d
 sudo cp -r configs/apache/* /etc/httpd/conf.d/
 sudo apachectl configtest
 
-echo "[3/5] Copying Prosody config..."
-sudo cp configs/prosody/prosody.cfg.lua.example /etc/prosody/prosody.cfg.lua
+echo "[4/6] Prosody config..."
+preflight_file "$PROSODY_SRC" "Prosody example" || true
+# Prosody example often still has placeholders; allow copy but warn and configtest.
+if grep -Eiq 'CHANGE_ME|example\.com' "$PROSODY_SRC"; then
+  echo "WARNING: Prosody example still has placeholders — edit $PROSODY_DST after copy before relying on chat."
+fi
+backup_path "$PROSODY_DST"
+sudo cp "$PROSODY_SRC" "$PROSODY_DST"
+if command -v prosodyctl >/dev/null 2>&1; then
+  sudo prosodyctl check config || sudo prosodyctl check || die "Prosody configtest failed"
+else
+  echo "WARNING: prosodyctl not found; skipped Prosody configtest"
+fi
 
-echo "[4/5] Copying HAProxy + Keepalived (review secrets first!)..."
-sudo cp configs/haproxy/haproxy.cfg.example /etc/haproxy/haproxy.cfg
-sudo cp configs/keepalived/keepalived.conf.example /etc/keepalived/keepalived.conf
+echo "[5/6] HAProxy + Keepalived..."
+if [[ "$APPLY_LB" == "1" ]]; then
+  if [[ -f "$HAPROXY_DST" || -f "$KEEPALIVED_DST" ]]; then
+    if [[ "$FORCE_LB" != "1" && "$FIRST_INSTALL" != "1" ]]; then
+      die "Live LB configs exist ($HAPROXY_DST / $KEEPALIVED_DST).\n       Refusing to overwrite rotated secrets with repo examples.\n       Manage LB configs on the host (or site-local path), or set FIRST_INSTALL=1 / FORCE_LB=1 after preflight."
+    fi
+  fi
+  preflight_file "$HAPROXY_SRC" "HAProxy example"
+  preflight_file "$KEEPALIVED_SRC" "Keepalived example"
+  backup_path "$HAPROXY_DST"
+  backup_path "$KEEPALIVED_DST"
+  sudo cp "$HAPROXY_SRC" "$HAPROXY_DST"
+  sudo cp "$KEEPALIVED_SRC" "$KEEPALIVED_DST"
+  if command -v haproxy >/dev/null 2>&1; then
+    sudo haproxy -c -f "$HAPROXY_DST" || die "HAProxy configtest failed"
+  else
+    die "haproxy binary not found; cannot configtest"
+  fi
+  if command -v keepalived >/dev/null 2>&1; then
+    # keepalived has no universal dry-run; basic presence check
+    echo "  Keepalived binary present; auth_pass must already be rotated (preflight passed)."
+  fi
+else
+  echo "  Skipping LB apply (default). Live Keepalived/HAProxy left untouched."
+  echo "  Set APPLY_LB=1 only for first install or after preparing non-placeholder examples."
+  if [[ -f "$HAPROXY_DST" ]] && command -v haproxy >/dev/null 2>&1; then
+    sudo haproxy -c -f "$HAPROXY_DST" || die "Existing HAProxy config failed configtest"
+  fi
+fi
 
-echo "[5/5] Restarting services..."
+echo "[6/6] Restarting services..."
 sudo systemctl restart httpd
 sudo systemctl restart prosody
-sudo systemctl restart haproxy
-sudo systemctl restart keepalived
+if [[ "$APPLY_LB" == "1" ]]; then
+  sudo systemctl restart haproxy
+  sudo systemctl restart keepalived
+else
+  # Reload only if units are active; do not bounce Keepalived on routine app deploys
+  if systemctl is-active --quiet haproxy; then
+    sudo systemctl reload haproxy 2>/dev/null || sudo systemctl restart haproxy
+  fi
+fi
 
-echo "Deploy complete."
-echo "Next: install/activate WordPress, child theme, and plugins via WP-CLI."
-echo "Smoke test: SSO -> dashboard -> chat -> mail -> files."
+echo "Deploy complete (REF=$REF)."
+echo "Next: WP-CLI activate theme/plugins if needed."
+echo "Smoke: SSO -> dashboard -> chat -> mail -> files."
+echo "Multi-node: roll secondary sites first; VIP site last; never APPLY_LB over rotated secrets."
