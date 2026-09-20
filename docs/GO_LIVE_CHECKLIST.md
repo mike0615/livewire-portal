@@ -6,12 +6,14 @@ Single source of truth for taking the portal from repo to production. Work top t
 
 ## 0. Pre-flight (do this first)
 
-- [ ] **Rotate the Keepalived password.** The example config ships `auth_pass livewire2024`. Generate a strong random value, put it only in the real config files on the servers, and remove it from the repo.
-- [ ] **Remove the basic-auth fallback** from `configs/apache/kerberos-wordpress.conf`. Keep pure GSSAPI. Add `GssapiSSLonly On` and `GssapiNegotiateOnce On`.
-- [ ] Replace every `example.com` / placeholder domain with your real FQDNs (portal, xmpp, mail).
+**Repo status (PR #1 merged):** Apache Kerberos config is pure GSSAPI (no basic-auth fallback; `GssapiSSLonly On` + `GssapiNegotiateOnce On`). Keepalived example uses `CHANGE_ME_ROTATE_BEFORE_DEPLOY` (not `livewire2024`). Still verify on servers:
+
+- [ ] **Rotate Keepalived `auth_pass` on each node** — strong random value only in live `/etc/keepalived/…`, never in git. Do **not** run `APPLY_LB=1` over already-rotated files (`scripts/deploy.sh` refuses by default).
+- [ ] **Confirm live Apache matches repo** — no `GssapiBasicAuth`; `GssapiSSLonly On` and `GssapiNegotiateOnce On` present.
+- [ ] Replace every placeholder domain with your real FQDNs (portal, xmpp, mail) in **site-local** configs (not committed secrets).
 - [ ] Confirm DNS: A/AAAA records for portal, xmpp, mail, plus SRV records for `_xmpp-client`, `_xmpp-server`, `_kerberos`, `_kpasswd`.
 - [ ] Confirm NTP is synced on every host (Kerberos is time-sensitive).
-- [ ] Confirm all XCP-ng hosts have **static IPs** and a bonded management interface.
+- [ ] Confirm all XCP-ng hosts have **static IPs** and a bonded management interface. (XCP sites standing; FreeIPA still outstanding — block SSO until §1 is done.)
 
 ---
 
@@ -38,8 +40,7 @@ Single source of truth for taking the portal from repo to production. Work top t
 - [ ] Child theme `livewire-child` activated; brand colors/logo set in `style.css`.
 - [ ] **LDAP Login for Intranet Sites** plugin installed + Kerberos/NTLM add-on.
 - [ ] LDAP groups mapped to WP roles.
-- [ ] Custom `livewire-shortcodes` plugin installed; dashboard shortcode renders real tool cards (replace placeholders).
-- [ ] Make dashboard data-driven: JSON file or custom post type for tool links so you can add apps without editing PHP.
+- [ ] Custom `livewire-shortcodes` plugin installed; dashboard shortcode renders real tool cards from `tools.json` (data-driven).
 - [ ] Local admin fallback account created and password stored in a password manager (in case SSO breaks).
 - [ ] Test: domain-joined browser hits portal → silent SSO → lands on dashboard. Non-domain browser gets a clean failure, not a password prompt.
 
@@ -62,7 +63,7 @@ Single source of truth for taking the portal from repo to production. Work top t
 - [ ] Dovecot + Postfix (or existing mail infra) deployed.
 - [ ] Dovecot configured for GSSAPI/Kerberos auth (or LDAP fallback).
 - [ ] Roundcube `krb_authentication` plugin installed and enabled.
-- [ ] IMAP GSSAPI works; SMTP GSSAPI is the known weak point — test send, and if it fails, configure a SASL proxy or accept password-for-send as a temporary measure.
+- [ ] IMAP GSSAPI works; SMTP GSSAPI is the known weak point — test send, and if it fails, configure a SASL proxy or accept password-for-send as a temporary measure. See `docs/SMTP_GSSAPI_WORKAROUND.md`.
 - [ ] Embed via the `livewire_mail` shortcode, full-height, themed.
 - [ ] Test: read and send mail entirely from inside the portal.
 
@@ -80,7 +81,7 @@ Single source of truth for taking the portal from repo to production. Work top t
 
 ## 6. HAProxy + Keepalived (per site)
 
-- [ ] HAProxy installed; config uses real certs, real backend IPs, `option httpchk` against a real health endpoint (not `/wp-login.php`).
+- [ ] HAProxy installed; config uses real certs, real backend IPs, `option httpchk` against `/healthz` (or another unauthenticated 200) — **not** `/wp-login.php`.
 - [ ] `X-Forwarded-Proto`, `X-Real-IP`, and `X-Forwarded-For` set correctly.
 - [ ] Keepalived uses the **rotated** password; unicast peers set for cross-subnet if needed.
 - [ ] Prefer DNS health-checked failover (or an external LB) for the global VIP across the three sites — do not rely on unicast VRRP across L3 boundaries as the primary mechanism.
@@ -92,7 +93,7 @@ Single source of truth for taking the portal from repo to production. Work top t
 
 - [ ] MariaDB Galera cluster: odd number of nodes (3 recommended), one per site or 2+1. Bootstrap the first node with `--wsrep-new-cluster`.
 - [ ] `wsrep_cluster_address`, `wsrep_node_name`, `wsrep_node_address` set correctly on every node.
-- [ ] Quorum and bootstrap procedure documented.
+- [ ] Quorum and bootstrap procedure documented — see `docs/GALERA_BOOTSTRAP.md`.
 - [ ] Prosody cluster mode (or federation) configured if you need shared MUC across sites.
 - [ ] Mail replication configured (Dovecot replication or shared mailbox backend).
 - [ ] Test: write on site A, read on site B; kill a Galera node → cluster stays quorate.
@@ -133,18 +134,28 @@ Single source of truth for taking the portal from repo to production. Work top t
 ## 11. Cutover
 
 - [ ] Announce maintenance window.
-- [ ] Final `git pull` + `scripts/deploy.sh` (or improved per-service version) on all nodes.
-- [ ] Smoke test the full path: SSO → dashboard → chat → mail → files → one external tool link.
-- [ ] Failover test one more time under load.
+- [ ] Confirm Keepalived/HAProxy on each node already have **rotated** secrets (do **not** run `APPLY_LB=1` over live files).
+- [ ] Rolling deploy, secondary sites first, VIP site last:
+  - Per node: `REF=<tag-or-main> ./scripts/deploy.sh` (Apache + Prosody; LB left untouched by default).
+  - Smoke that node: SSO → dashboard → chat → mail → files → one tool link.
+- [ ] Full-path smoke through the VIP.
+- [ ] Failover test one more time under light load.
 - [ ] Hand the stakeholder deck (now in `docs/stakeholder-presentations/`) to leadership.
 - [ ] Go live. Monitor for 24–48 hours.
 
 ---
 
-## Known gaps to close before or right after go-live
+## Known gaps
 
-1. **SMTP GSSAPI in Roundcube** is incomplete upstream — plan a SASL proxy or a temporary password-for-send path.
-2. **Dashboard is placeholder-driven** — make it data-driven before users see it.
-3. **Deploy script** swallows errors (`2>/dev/null || true`) — replace with checked, per-service steps.
-4. **No IaC** — consider Ansible or Terraform for the three sites so rebuilds are reproducible.
-5. **No runbook for Galera bootstrap after total outage** — write it now, not during an incident.
+### Still open (Phase A / right after go-live)
+
+1. **SMTP GSSAPI in Roundcube** is incomplete upstream — plan a SASL proxy or a temporary password-for-send path. See `docs/SMTP_GSSAPI_WORKAROUND.md`.
+2. **No IaC** — Ansible or Terraform for the three sites so rebuilds are reproducible. **Phase B+ backlog; not a Phase A blocker.**
+3. **FreeIPA not built yet** — SSO blocked until §1 complete (XCP sites are standing).
+
+### Closed in repo (verify on servers at cutover)
+
+- ~~Dashboard placeholder-driven~~ — `plugins/livewire-shortcodes/tools.json` is data-driven.
+- ~~Deploy script swallowed errors~~ — `scripts/deploy.sh` uses `set -euo pipefail`, per-service steps, configtests, and refuses to overwrite live Keepalived/HAProxy by default.
+- ~~No Galera total-outage runbook~~ — see `docs/GALERA_BOOTSTRAP.md`.
+- ~~HAProxy httpchk on `/wp-login.php`~~ — example now uses `/healthz`.

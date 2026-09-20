@@ -1,4 +1,6 @@
 # HAProxy config for LiveWire Portal
+# NOTE: Replace backend IPs and cert path for your sites.
+# Health check uses /healthz — serve a lightweight 200 from Apache/WP (not /wp-login.php).
 global
     log /dev/log local0
     maxconn 4096
@@ -24,7 +26,9 @@ frontend portal_https
 
 backend wordpress_backends
     balance roundrobin
-    option httpchk GET /wp-login.php
+    # Do NOT use /wp-login.php — Kerberos/SSO makes checks flaky and violates go-live §6.
+    option httpchk GET /healthz
+    http-check expect status 200
     server wp1 10.1.1.20:80 check
     server wp2 10.1.1.21:80 check
     server wp3 10.2.1.20:80 check backup
