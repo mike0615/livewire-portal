@@ -2,9 +2,9 @@
 /**
  * Plugin Name: LiveWire Shortcodes
  * Description: Unified shortcodes for embeds and dashboard.
- * Version: 1.1
+ * Version: 1.1.1
  *
- * Dashboard is now data-driven: edit plugins/livewire-shortcodes/tools.json
+ * Dashboard is data-driven: edit plugins/livewire-shortcodes/tools.json
  * to add/remove tool cards without touching PHP.
  */
 
@@ -20,12 +20,20 @@ add_action('init', 'livewire_register_shortcodes');
  * Load tool definitions from tools.json (falls back to built-in defaults).
  */
 function livewire_load_tools() {
+    static $json_warned = false;
     $json_path = plugin_dir_path(__FILE__) . 'tools.json';
     if (file_exists($json_path)) {
         $raw = file_get_contents($json_path);
         $tools = json_decode($raw, true);
         if (is_array($tools)) {
             return $tools;
+        }
+        if (!$json_warned) {
+            $json_warned = true;
+            if (function_exists('error_log')) {
+                error_log('livewire-shortcodes: tools.json is invalid JSON; using built-in defaults.');
+            }
+            add_action('admin_notices', 'livewire_tools_json_admin_notice');
         }
     }
     return array(
@@ -34,6 +42,15 @@ function livewire_load_tools() {
         array('icon' => '✉️', 'title' => 'Mail', 'desc' => 'Roundcube', 'url' => '#mail'),
         array('icon' => '🔧', 'title' => 'Tools', 'desc' => 'All links', 'url' => '#tools'),
     );
+}
+
+function livewire_tools_json_admin_notice() {
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+    echo '<div class="notice notice-warning"><p>';
+    echo esc_html('LiveWire Shortcodes: tools.json is invalid JSON. Using built-in defaults until it is fixed.');
+    echo '</p></div>';
 }
 
 function livewire_dashboard_cb() {
