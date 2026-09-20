@@ -3,24 +3,24 @@
     "icon": "💬",
     "title": "Chat",
     "desc": "Team XMPP via Converse.js",
-    "url": "#chat"
+    "url": "https://portal.acc.local/#chat"
   },
   {
     "icon": "📁",
     "title": "Files",
     "desc": "Share & download",
-    "url": "#files"
+    "url": "https://portal.acc.local/#files"
   },
   {
     "icon": "✉️",
     "title": "Mail",
     "desc": "Roundcube webmail",
-    "url": "#mail"
+    "url": "https://mail.acc.local/roundcube/"
   },
   {
     "icon": "🔧",
     "title": "Tools",
     "desc": "All internal links",
-    "url": "#tools"
+    "url": "https://portal.acc.local/#tools"
   }
 ]
