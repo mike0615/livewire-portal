@@ -2,6 +2,9 @@
 # Hardened, secret-safe deploy helper for LiveWire Portal.
 # Fails fast. Run as root or with sudo for service steps.
 #
+# Working FQDNs: portal.acc.local / xmpp.acc.local / mail.acc.local
+# Preflight FAILS on example.com, CHANGE_ME, livewire2024. acc.local is OK.
+#
 # Usage:
 #   REF=main ./scripts/deploy.sh              # default: Apache + Prosody only
 #   APPLY_LB=1 ./scripts/deploy.sh            # also apply HAProxy/Keepalived (dangerous)
@@ -46,12 +49,13 @@ backup_path() {
 }
 
 # Fail if a file that is about to be installed still has placeholders.
+# example.com = hard fail; *.acc.local is the intended zone.
 preflight_file() {
   local f="$1"
   local label="$2"
   [[ -f "$f" ]] || die "missing $label: $f"
   if grep -Eiq 'CHANGE_ME|livewire2024|example\.com' "$f"; then
-    die "$label still contains CHANGE_ME / livewire2024 / example.com: $f\n       Fix site-local config (or edit the example before APPLY_LB) before deploy."
+    die "$label still contains CHANGE_ME / livewire2024 / example.com: $f\n       Use portal/xmpp/mail.acc.local (or edit before APPLY_LB)."
   fi
 }
 
@@ -87,7 +91,7 @@ sudo apachectl configtest
 
 echo "[4/6] Prosody config..."
 if grep -Eiq 'CHANGE_ME|example\.com' "$PROSODY_SRC"; then
-  echo "WARNING: Prosody example still has placeholders — edit $PROSODY_DST after copy before relying on chat."
+  echo "WARNING: Prosody example still has placeholders — prefer xmpp.acc.local; edit $PROSODY_DST after copy if needed."
 fi
 backup_path "$PROSODY_DST"
 sudo cp "$PROSODY_SRC" "$PROSODY_DST"
