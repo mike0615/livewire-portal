@@ -2,11 +2,22 @@
 /**
  * Plugin Name: LiveWire Shortcodes
  * Description: Unified shortcodes for embeds and dashboard.
- * Version: 1.1.1
+ * Version: 1.1.2
  *
  * Dashboard is data-driven: edit plugins/livewire-shortcodes/tools.json
  * to add/remove tool cards without touching PHP.
+ *
+ * Site-local defaults use *.acc.local. Override with filters:
+ *   livewire_xmpp_url, livewire_mail_url
+ * or define LIVEWIRE_XMPP_URL / LIVEWIRE_MAIL_URL before plugins load.
  */
+
+if (!defined('LIVEWIRE_XMPP_URL')) {
+    define('LIVEWIRE_XMPP_URL', 'https://xmpp.acc.local/converse/');
+}
+if (!defined('LIVEWIRE_MAIL_URL')) {
+    define('LIVEWIRE_MAIL_URL', 'https://mail.acc.local/roundcube/');
+}
 
 function livewire_register_shortcodes() {
     add_shortcode('livewire_dashboard', 'livewire_dashboard_cb');
@@ -37,10 +48,10 @@ function livewire_load_tools() {
         }
     }
     return array(
-        array('icon' => '💬', 'title' => 'Chat', 'desc' => 'Team XMPP', 'url' => '#chat'),
-        array('icon' => '📁', 'title' => 'Files', 'desc' => 'Share & download', 'url' => '#files'),
-        array('icon' => '✉️', 'title' => 'Mail', 'desc' => 'Roundcube', 'url' => '#mail'),
-        array('icon' => '🔧', 'title' => 'Tools', 'desc' => 'All links', 'url' => '#tools'),
+        array('icon' => '💬', 'title' => 'Chat', 'desc' => 'Team XMPP', 'url' => 'https://portal.acc.local/#chat'),
+        array('icon' => '📁', 'title' => 'Files', 'desc' => 'Share & download', 'url' => 'https://portal.acc.local/#files'),
+        array('icon' => '✉️', 'title' => 'Mail', 'desc' => 'Roundcube', 'url' => 'https://mail.acc.local/roundcube/'),
+        array('icon' => '🔧', 'title' => 'Tools', 'desc' => 'All links', 'url' => 'https://portal.acc.local/#tools'),
     );
 }
 
@@ -72,12 +83,12 @@ function livewire_dashboard_cb() {
 }
 
 function livewire_chat_cb() {
-    $url = esc_url(apply_filters('livewire_xmpp_url', 'https://xmpp.example.com/converse/'));
+    $url = esc_url(apply_filters('livewire_xmpp_url', LIVEWIRE_XMPP_URL));
     return '<iframe class="embed-frame" src="' . $url . '" title="Chat"></iframe>';
 }
 
 function livewire_mail_cb() {
-    $url = esc_url(apply_filters('livewire_mail_url', 'https://mail.example.com/roundcube/'));
+    $url = esc_url(apply_filters('livewire_mail_url', LIVEWIRE_MAIL_URL));
     return '<iframe class="embed-frame" src="' . $url . '" title="Mail"></iframe>';
 }
 
