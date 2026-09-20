@@ -1,7 +1,8 @@
 -- Prosody config for LiveWire Portal
 -- Enable Cyrus SASL for Kerberos or LDAP
+-- Working zone: acc.local (portal.acc.local / xmpp.acc.local / mail.acc.local)
 
-VirtualHost "xmpp.example.com"
+VirtualHost "xmpp.acc.local"
     enabled = true
     authentication = "cyrus"   -- or "ldap"
     cyrus_service_name = "xmpp"
@@ -22,5 +23,5 @@ http_ports = { 5280 }
 https_ports = { 5281 }
 
 -- MUC rooms
-Component "muc.xmpp.example.com" "muc"
+Component "muc.xmpp.acc.local" "muc"
     modules_enabled = { "muc_mam" }

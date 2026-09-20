@@ -6,12 +6,14 @@ Single source of truth for taking the portal from repo to production. Work top t
 
 ## 0. Pre-flight (do this first)
 
+**Working FQDNs (for now):** `portal.acc.local` / `xmpp.acc.local` / `mail.acc.local`. `scripts/deploy.sh` preflight **fails** on `example.com` (and `CHANGE_ME` / `livewire2024`); `acc.local` is the intended zone.
+
 **Repo status (PR #1 merged):** Apache Kerberos config is pure GSSAPI (no basic-auth fallback; `GssapiSSLonly On` + `GssapiNegotiateOnce On`). Keepalived example uses `CHANGE_ME_ROTATE_BEFORE_DEPLOY` (not `livewire2024`). Still verify on servers:
 
 - [ ] **Rotate Keepalived `auth_pass` on each node** — strong random value only in live `/etc/keepalived/…`, never in git. Do **not** run `APPLY_LB=1` over already-rotated files (`scripts/deploy.sh` refuses by default).
 - [ ] **Confirm live Apache matches repo** — no `GssapiBasicAuth`; `GssapiSSLonly On` and `GssapiNegotiateOnce On` present.
-- [ ] Replace every placeholder domain with your real FQDNs (portal, xmpp, mail) in **site-local** configs (not committed secrets).
-- [ ] Confirm DNS: A/AAAA records for portal, xmpp, mail, plus SRV records for `_xmpp-client`, `_xmpp-server`, `_kerberos`, `_kpasswd`.
+- [ ] Site-local configs use `portal.acc.local` / `xmpp.acc.local` / `mail.acc.local` (no `example.com`).
+- [ ] Confirm DNS: A/AAAA for those names, plus SRV for `_xmpp-client`, `_xmpp-server`, `_kerberos`, `_kpasswd` under `acc.local`.
 - [ ] Confirm NTP is synced on every host (Kerberos is time-sensitive).
 - [ ] Confirm all XCP-ng hosts have **static IPs** and a bonded management interface. (XCP sites standing; FreeIPA still outstanding — block SSO until §1 is done.)
 
@@ -22,12 +24,12 @@ Single source of truth for taking the portal from repo to production. Work top t
 - [ ] FreeIPA deployed and reachable from all three sites.
 - [ ] All XCP-ng hosts and service VMs enrolled as IPA clients (`ipa-client-install`).
 - [ ] Service principals created:
-  - `HTTP/portal.<domain>@REALM`
-  - `xmpp/xmpp.<domain>@REALM`
-  - `imap/mail.<domain>@REALM`
+  - `HTTP/portal.acc.local@REALM`
+  - `xmpp/xmpp.acc.local@REALM`
+  - `imap/mail.acc.local@REALM`
 - [ ] Keytabs generated and placed in `/etc/krb5.keytab` (or service-specific paths), mode `0600`, owned by the service user.
 - [ ] `krb5.conf` distributed with correct `auth_to_local` rules so principals map to local usernames.
-- [ ] Test: `kinit` as a domain user from a client, then `kvno HTTP/portal.<domain>` succeeds.
+- [ ] Test: `kinit` as a domain user from a client, then `kvno HTTP/portal.acc.local` succeeds.
 
 ---
 
@@ -48,7 +50,7 @@ Single source of truth for taking the portal from repo to production. Work top t
 
 ## 3. XMPP Chat (Prosody + Converse.js)
 
-- [ ] Prosody installed on dedicated VM.
+- [ ] Prosody installed on dedicated VM (`xmpp.acc.local`).
 - [ ] `lua-cyrussasl` installed; `authentication = "cyrus"`, `cyrus_service_name = "xmpp"`.
 - [ ] Cyrus SASL config (`/etc/sasl2/prosody.conf` or `/etc/sasl/prosody.conf`) points at saslauthd with `pwcheck_method: saslauthd`, `mech_list: GSSAPI`.
 - [ ] BOSH on 5280, WebSocket on 5281, both behind TLS.
@@ -60,7 +62,7 @@ Single source of truth for taking the portal from repo to production. Work top t
 
 ## 4. Webmail (Roundcube + Dovecot)
 
-- [ ] Dovecot + Postfix (or existing mail infra) deployed.
+- [ ] Dovecot + Postfix (or existing mail infra) deployed (`mail.acc.local`).
 - [ ] Dovecot configured for GSSAPI/Kerberos auth (or LDAP fallback).
 - [ ] Roundcube `krb_authentication` plugin installed and enabled.
 - [ ] IMAP GSSAPI works; SMTP GSSAPI is the known weak point — test send, and if it fails, configure a SASL proxy or accept password-for-send as a temporary measure. See `docs/SMTP_GSSAPI_WORKAROUND.md`.
